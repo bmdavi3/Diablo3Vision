@@ -83,9 +83,7 @@ class Corners(object):
                          new_corners[2], new_corners[3])
 
 
-def find_diablo_image(frame):
-    small = cv.LoadImageM('pics/small2.png')
-
+def find_diablo_image(frame, small):
     result = cv.CreateImage(((frame.width - small.cols) + 1,
                              (frame.height - small.rows) + 1),
                             cv.IPL_DEPTH_32F, 1)
@@ -94,6 +92,10 @@ def find_diablo_image(frame):
 
     min_val, max_val, min_loc, max_loc = cv.MinMaxLoc(result)
 
+    if max_val > 0.95:
+        cv.Rectangle(frame, max_loc,
+                     (max_loc[0] + small.cols, max_loc[1] + small.rows),
+                     cv.CV_RGB(255, 0, 0), 3)
     print max_val, max_loc
 
 
@@ -128,7 +130,7 @@ def distance(p0, p1):
     return math.sqrt((p0[0] - p1[0]) ** 2 + (p0[1] - p1[1]) ** 2)
 
 
-def repeat(capture, corners):
+def repeat(capture, corners, gargoyle_image):
     frame = cv.QueryFrame(capture)
 
     frame_gray = cv.CreateImage(cv.GetSize(frame), cv.IPL_DEPTH_8U, 1)
@@ -157,7 +159,7 @@ def repeat(capture, corners):
     pFrame = cv.CreateImage((new_width, new_height), cv.IPL_DEPTH_8U, 3)
     cv.WarpPerspective(frame, pFrame, trans)
 
-    # find_diablo_image(pFrame)
+    find_diablo_image(pFrame, gargoyle_image)
 
     cv.ShowImage("w1", pFrame)
     cv.WaitKey(10)
@@ -167,10 +169,11 @@ def main():
     cv.NamedWindow("w1", cv.CV_WINDOW_AUTOSIZE)
     capture = cv.CaptureFromCAM(2)
 
+    gargoyle_image = cv.LoadImageM('pics/gargoyle.png')
     corners = Corners()
 
     while True:
-        repeat(capture, corners)
+        repeat(capture, corners, gargoyle_image)
 
 if __name__ == "__main__":
     main()
