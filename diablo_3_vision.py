@@ -1,6 +1,77 @@
 import math
+from collections import deque
 
 import cv
+
+MOVING_AVG_LENGTH = 10
+
+
+class Corners(object):
+    def __init__(self):
+        self.ul = deque([(0, 0)] * MOVING_AVG_LENGTH)
+        self.ur = deque([(0, 0)] * MOVING_AVG_LENGTH)
+        self.ll = deque([(0, 0)] * MOVING_AVG_LENGTH)
+        self.lr = deque([(0, 0)] * MOVING_AVG_LENGTH)
+
+    def add_corners(self, ul, ur, ll, lr):
+        self.ul.append(ul)
+        self.ul.popleft()
+
+        self.ur.append(ur)
+        self.ur.popleft()
+
+        self.ll.append(ll)
+        self.ll.popleft()
+
+        self.lr.append(lr)
+        self.lr.popleft()
+
+    def average_points(self):
+        average_points = []
+
+        for points in (self.ul, self.ur,
+                       self.ll, self.lr):
+
+            x_total = 0
+            y_total = 0
+
+            for point in points:
+                x_total += point[0]
+                y_total += point[1]
+
+            num_points = len(points)
+
+            average_points.append((x_total / num_points,
+                                   y_total / num_points))
+
+        return average_points
+
+
+def test_corners():
+    corners = Corners()
+
+    print corners.average_points()
+
+    corners.add_corners((1, 1), (1, 1), (1, 1), (1, 1))
+
+    print corners.average_points()
+
+    corners.add_corners((99, 2), (1, 1), (1, 1), (1, 1))
+
+    print corners.average_points()
+
+    corners.add_corners((3, 3), (1, 1), (1, 1), (1, 1))
+
+    print corners.average_points()
+
+    corners.add_corners((4, 4), (1, 1), (1, 1), (1, 1))
+
+    print corners.average_points()
+
+    corners.add_corners((4, 4), (1, 1), (1, 1), (1, 1))
+
+    print corners.average_points()
+
 
 def template_match():
     small = cv.LoadImageM('pics/small.png')
@@ -16,11 +87,9 @@ def template_match():
     print max_loc
 
 
-cv.NamedWindow("w1", cv.CV_WINDOW_AUTOSIZE)
-capture = cv.CaptureFromCAM(0)
-
 def distance(p0, p1):
-    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+    return math.sqrt((p0[0] - p1[0]) ** 2 + (p0[1] - p1[1]) ** 2)
+
 
 def get_corners(lines):
     ul = (10000, 10000)
@@ -44,11 +113,10 @@ def get_corners(lines):
 
     return (ul, ur, ll, lr)
 
-def repeat():
+
+def repeat(capture, corners):
     frame = cv.QueryFrame(capture)
 
-    # frame2 = cv.CreateImage((frame.height, frame.width), cv.CV_32FC1, 1)
-    # cv.ConvertScale(frame, frame2)
     frame_gray = cv.CreateImage(cv.GetSize(frame), cv.IPL_DEPTH_8U, 1)
     cv.CvtColor(frame, frame_gray, cv.CV_RGB2GRAY)
 
@@ -59,18 +127,17 @@ def repeat():
                            cv.CV_HOUGH_PROBABILISTIC, 1, math.pi / 70,
                            10, 20, 20)
 
-    # for line in lines:
-    #     cv.Line(frame, line[0], line[1], (0, 0, 255), 3)
+    new_corners = get_corners(lines)
 
-    ul, ur, ll, lr = get_corners(lines)
+    corners.add_corners(new_corners[0], new_corners[1],
+                        new_corners[2], new_corners[3])
+
+    ul, ur, ll, lr = corners.average_points()
 
     cv.Circle(frame, ul, 10, cv.CV_RGB(255, 255, 255), 1)
     cv.Circle(frame, ur, 10, cv.CV_RGB(255, 255, 255), 1)
     cv.Circle(frame, ll, 10, cv.CV_RGB(255, 255, 255), 1)
     cv.Circle(frame, lr, 10, cv.CV_RGB(255, 255, 255), 1)
-
-    print ul, ur, ll, lr
-    cv.Circle(frame, (10, 10), 10, cv.CV_RGB(255, 0, 0), 1)
 
     src = [ul, ll, ur, lr]
     dst = [(0, 0), (0, frame.height),
@@ -81,21 +148,18 @@ def repeat():
     pFrame = cv.CreateImage((frame.width, frame.height), cv.IPL_DEPTH_8U, 3)
     cv.WarpPerspective(frame, pFrame, trans)
 
+    cv.ShowImage("w1", frame)
+    cv.WaitKey(10)
 
-    # eig_image = cv.CreateMat(frame.height, frame.width, cv.CV_32FC1)
-    # temp_image = cv.CreateMat(frame.height, frame.width, cv.CV_32FC1)
-    # for (x,y) in cv.GoodFeaturesToTrack(frame_gray, eig_image, temp_image, 4, 0.04, 200.0, useHarris = True):
-    #     cv.Circle(frame, (int(x), int(y)), 10, cv.CV_RGB(255, 255, 255), 1)
-    #     print "good feature at", x,y
-
-    # cv.ShowImage("w2", frame)
-
-    cv.ShowImage("w1", pFrame)
-    c = cv.WaitKey(10)
 
 def main():
+    cv.NamedWindow("w1", cv.CV_WINDOW_AUTOSIZE)
+    capture = cv.CaptureFromCAM(2)
+
+    corners = Corners()
+
     while True:
-        repeat()
+        repeat(capture, corners)
 
 if __name__ == "__main__":
     main()
