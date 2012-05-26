@@ -83,18 +83,45 @@ class Corners(object):
                          new_corners[2], new_corners[3])
 
 
-def template_match():
-    small = cv.LoadImageM('pics/small.png')
-    large = cv.LoadImageM('pics/large1.png')
+def find_diablo_image(frame):
+    small = cv.LoadImageM('pics/small2.png')
 
-    # result = cv.CreateMat((large.cols - small.cols) + 1, (large.rows - small.rows) + 1, cv.CV_32F)
-    result = cv.CreateImage(((large.cols - small.cols) + 1, (large.rows - small.rows) + 1), cv.IPL_DEPTH_32F, 1)
+    result = cv.CreateImage(((frame.width - small.cols) + 1,
+                             (frame.height - small.rows) + 1),
+                            cv.IPL_DEPTH_32F, 1)
 
-    cv.MatchTemplate(large, small, result, cv.CV_TM_CCORR_NORMED)
+    cv.MatchTemplate(frame, small, result, cv.CV_TM_CCORR_NORMED)
 
     min_val, max_val, min_loc, max_loc = cv.MinMaxLoc(result)
 
-    print max_loc
+    print max_val, max_loc
+
+
+def closest(target, collection):
+    return min((abs(target - i), i) for i in collection)[1]
+
+
+def guess_ratio(p1, p2, p3, p4):
+    distances = []
+
+    distances.append(distance(p1, p2))
+    distances.append(distance(p1, p3))
+    distances.append(distance(p1, p4))
+    distances.append(distance(p2, p3))
+    distances.append(distance(p2, p4))
+    distances.append(distance(p3, p4))
+
+    distances.sort()
+
+    ratios = [
+        4.0 / 3,
+        16.0 / 9,
+        16.0 / 10
+    ]
+
+    ratio = (distances[3] + distances[2]) / (distances[1] + distances[0])
+
+    return closest(ratio, ratios)
 
 
 def distance(p0, p1):
@@ -111,19 +138,26 @@ def repeat(capture, corners):
 
     ul, ur, ll, lr = corners.average_points()
 
+    ratio = guess_ratio(ul, ur, ll, lr)
+
     cv.Circle(frame, ul, 10, cv.CV_RGB(255, 255, 255), 1)
     cv.Circle(frame, ur, 10, cv.CV_RGB(255, 255, 255), 1)
     cv.Circle(frame, ll, 10, cv.CV_RGB(255, 255, 255), 1)
     cv.Circle(frame, lr, 10, cv.CV_RGB(255, 255, 255), 1)
 
+    new_height = frame.height
+    new_width = int(frame.height * ratio)
+
     src = [ul, ll, ur, lr]
-    dst = [(0, 0), (0, frame.height),
-           (frame.width, 0), (frame.width, frame.height)]
+    dst = [(0, 0), (0, new_height),
+           (new_width, 0), (new_width, new_height)]
     trans = cv.CreateMat(3, 3, cv.CV_32FC1)
     cv.GetPerspectiveTransform(src, dst, trans)
 
-    pFrame = cv.CreateImage((frame.width, frame.height), cv.IPL_DEPTH_8U, 3)
+    pFrame = cv.CreateImage((new_width, new_height), cv.IPL_DEPTH_8U, 3)
     cv.WarpPerspective(frame, pFrame, trans)
+
+    # find_diablo_image(pFrame)
 
     cv.ShowImage("w1", pFrame)
     cv.WaitKey(10)
