@@ -46,31 +46,41 @@ class Corners(object):
 
         return average_points
 
+    def get_corners(self, lines):
+        ul = (10000, 10000)
+        ur = (10000, 10000)
+        ll = (10000, 10000)
+        lr = (10000, 10000)
 
-def test_corners():
-    corners = Corners()
+        for line in lines:
+            for p in line:
+                if distance(p, (0, 0)) < distance(ul, (0, 0)):
+                    ul = p
 
-    print corners.average_points()
+                if distance(p, (640, 0)) < distance(ur, (640, 0)):
+                    ur = p
 
-    corners.add_corners((1, 1), (1, 1), (1, 1), (1, 1))
+                if distance(p, (0, 480)) < distance(ll, (0, 480)):
+                    ll = p
 
-    print corners.average_points()
+                if distance(p, (640, 480)) < distance(lr, (640, 480)):
+                    lr = p
 
-    corners.add_corners((99, 2), (1, 1), (1, 1), (1, 1))
+        return (ul, ur, ll, lr)
 
-    print corners.average_points()
+    def scan(self, frame_gray):
+        edges_image = cv.CreateImage(cv.GetSize(frame_gray),
+                                     cv.IPL_DEPTH_8U, 1)
+        cv.Canny(frame_gray, edges_image, 10, 120)
 
-    corners.add_corners((3, 3), (1, 1), (1, 1), (1, 1))
+        lines = cv.HoughLines2(edges_image, cv.CreateMemStorage(),
+                               cv.CV_HOUGH_PROBABILISTIC, 1, math.pi / 70,
+                               10, 30, 20)
 
-    print corners.average_points()
+        new_corners = self.get_corners(lines)
 
-    corners.add_corners((4, 4), (1, 1), (1, 1), (1, 1))
-
-    print corners.average_points()
-
-    corners.add_corners((4, 4), (1, 1), (1, 1), (1, 1))
-
-    print corners.average_points()
+        self.add_corners(new_corners[0], new_corners[1],
+                         new_corners[2], new_corners[3])
 
 
 def template_match():
@@ -91,46 +101,13 @@ def distance(p0, p1):
     return math.sqrt((p0[0] - p1[0]) ** 2 + (p0[1] - p1[1]) ** 2)
 
 
-def get_corners(lines):
-    ul = (10000, 10000)
-    ur = (10000, 10000)
-    ll = (10000, 10000)
-    lr = (10000, 10000)
-
-    for line in lines:
-        for p in line:
-            if distance(p, (0, 0)) < distance(ul, (0, 0)):
-                ul = p
-
-            if distance(p, (640, 0)) < distance(ur, (640, 0)):
-                ur = p
-
-            if distance(p, (0, 480)) < distance(ll, (0, 480)):
-                ll = p
-
-            if distance(p, (640, 480)) < distance(lr, (640, 480)):
-                lr = p
-
-    return (ul, ur, ll, lr)
-
-
 def repeat(capture, corners):
     frame = cv.QueryFrame(capture)
 
     frame_gray = cv.CreateImage(cv.GetSize(frame), cv.IPL_DEPTH_8U, 1)
     cv.CvtColor(frame, frame_gray, cv.CV_RGB2GRAY)
 
-    edges_image = cv.CreateImage(cv.GetSize(frame), cv.IPL_DEPTH_8U, 1)
-    cv.Canny(frame_gray, edges_image, 10, 120)
-
-    lines = cv.HoughLines2(edges_image, cv.CreateMemStorage(),
-                           cv.CV_HOUGH_PROBABILISTIC, 1, math.pi / 70,
-                           10, 20, 20)
-
-    new_corners = get_corners(lines)
-
-    corners.add_corners(new_corners[0], new_corners[1],
-                        new_corners[2], new_corners[3])
+    corners.scan(frame_gray)
 
     ul, ur, ll, lr = corners.average_points()
 
@@ -148,7 +125,7 @@ def repeat(capture, corners):
     pFrame = cv.CreateImage((frame.width, frame.height), cv.IPL_DEPTH_8U, 3)
     cv.WarpPerspective(frame, pFrame, trans)
 
-    cv.ShowImage("w1", frame)
+    cv.ShowImage("w1", pFrame)
     cv.WaitKey(10)
 
 
