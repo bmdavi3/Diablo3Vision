@@ -93,9 +93,26 @@ def find_diablo_image(frame, small):
     min_val, max_val, min_loc, max_loc = cv.MinMaxLoc(result)
 
     if max_val > 0.95:
+        sub_rect = cv.GetSubRect(frame,
+                                 (max_loc[0] + 36, max_loc[1] - 38,
+                                  70, 70))
+
+        sub_frame = cv.CreateImage((70, 70), cv.IPL_DEPTH_8U, 3)
+
+        cv.Copy(sub_rect, sub_frame)
+
+        cv.Circle(sub_frame, (35, 35), 60, cv.CV_RGB(0, 0, 0), 50)
+
+        cv.ShowImage("w2", sub_frame)
+
         cv.Rectangle(frame, max_loc,
                      (max_loc[0] + small.cols, max_loc[1] + small.rows),
                      cv.CV_RGB(255, 0, 0), 3)
+
+        cv.Rectangle(frame, (max_loc[0] + 36, max_loc[1] - 38),
+                     (max_loc[0] + 106, max_loc[1] + 32),
+                     cv.CV_RGB(255, 255, 255), 1)
+
     print max_val, max_loc
 
 
@@ -167,7 +184,8 @@ def repeat(capture, corners, gargoyle_image):
 
 def main():
     cv.NamedWindow("w1", cv.CV_WINDOW_AUTOSIZE)
-    capture = cv.CaptureFromCAM(2)
+    cv.NamedWindow("w2", cv.CV_WINDOW_AUTOSIZE)
+    capture = cv.CaptureFromCAM(1)
 
     gargoyle_image = cv.LoadImageM('pics/gargoyle.png')
     corners = Corners()
